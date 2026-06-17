@@ -1448,7 +1448,7 @@ end
 
 -- Global function called by the keybinding
 function AbstractTweaks_FishingRun()
-    local Tweaks = Abstract Tweaks:GetModule("Tweaks", true)
+    local Tweaks = AbstractTweaks:GetModule("Tweaks", true)
     if not Tweaks or not Tweaks.db or not Tweaks.db.profile.oneKeyFishing then return end
     
     -- Don't run in combat or while flying
