@@ -4,8 +4,6 @@
 
 local AbstractTweaks = LibStub("AceAddon-3.0"):NewAddon("AbstractTweaks", "AceConsole-3.0", "AceEvent-3.0", "AceHook-3.0")
 
-AbstractTweaks.version = "12.0.7.0"
-
 -- ============================================================================
 -- LOCAL VARIABLES
 -- ============================================================================
@@ -124,9 +122,6 @@ function AbstractTweaks:OnInitialize()
             print("  Database not ready")
         end
     end
-    
-    -- Print welcome message
-    print("|cff00FF7FAbstract Tweaks|r v" .. self.version .. " loaded. Type |cff00FFFF/tweaks|r for options.")
 end
 
 function AbstractTweaks:OnEnable()
@@ -297,7 +292,7 @@ function AbstractTweaks:SetupOptions()
         args = {
             header = {
                 type = "description",
-                name = "|cff00FF7FAbstract Tweaks|r v" .. self.version .. "\n" ..
+                name = "|cff00FF7FAbstract Tweaks|r v" .. (C_AddOns.GetAddOnMetadata("AbstractTweaks", "Version") or "Unknown") .. "\n" ..
                        "Quality-of-life tweaks for World of Warcraft\n\n",
                 fontSize = "medium",
                 order = 1,
