@@ -1,7 +1,16 @@
-local AbstractTweaks = LibStub("AceAddon-3.0"):GetAddon("AbstractTweaks")
-local Tweaks = AbstractTweaks:NewModule("Tweaks", "AceEvent-3.0", "AceHook-3.0")
+-- ============================================================================
+-- Abstract Tweaks - Standalone Quality of Life Addon
+-- ============================================================================
 
--- Create a hidden parent frame for hiding UI elements
+local AbstractTweaks = LibStub("AceAddon-3.0"):NewAddon("AbstractTweaks", "AceConsole-3.0", "AceEvent-3.0", "AceHook-3.0")
+
+AbstractTweaks.version = "12.0.7.0"
+
+-- ============================================================================
+-- LOCAL VARIABLES
+-- ============================================================================
+
+-- Hidden frame for hiding UI elements
 local hiddenFrame = CreateFrame("Frame")
 hiddenFrame:Hide()
 
@@ -9,104 +18,128 @@ local LOADOUT_SERIALIZATION_VERSION
 local lootEpoch = 0
 local LOOT_DELAY = 0.3
 
-function Tweaks:OnInitialize()
+-- ============================================================================
+-- STATIC POPUP DIALOGS
+-- ============================================================================
+
+StaticPopupDialogs["ABSTRACTTWEAKS_RELOAD_CONFIRM"] = {
+    text = "This action requires a UI reload. Reload now?",
+    button1 = "Yes",
+    button2 = "No",
+    OnAccept = function()
+        if not InCombatLockdown() then
+            ReloadUI()
+        else
+            print("|cffff0000Abstract Tweaks:|r Cannot reload UI while in combat. Please leave combat and run /reload.")
+        end
+    end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,
+}
+
+StaticPopupDialogs["ABSTRACTTWEAKS_TALENT_IMPORT_ERROR"] = {
+    text = "%s",
+    button1 = OKAY,
+    timeout = 0,
+    whileDead = 1,
+    hideOnEscape = 1,
+}
+
+-- ============================================================================
+-- DATABASE DEFAULTS
+-- ============================================================================
+
+local defaults = {
+    profile = {
+        fastLoot = true,
+        hideGryphons = false,
+        hideBagBar = false,
+        importOverwriteEnabled = true,
+        autoRepair = true,
+        autoRepairGuild = false,
+        autoSellJunk = true,
+        revealMap = true,
+        autoDelete = true,
+        autoScreenshot = false,
+        skipCutscenes = false,
+        autoInsertKey = true,
+        questFrameScale = 1.0,
+        questFrameX = 0,
+        questFrameY = 0,
+        questFrameCustomPosition = false,
+        groupFinderScale = 1.25,
+        groupFinderX = 0,
+        groupFinderY = 0,
+        groupFinderCustomPosition = false,
+        recolorDelvePins = true,
+        delvePinColor = { r = 0.2, g = 1.0, b = 0.8, a = 1.0 },
+        bountifulDelvePinColor = { r = 1.0, g = 0.84, b = 0.0, a = 1.0 },
+        oneKeyFishing = false,
+        oneKeyFishingFirstTime = true,
+        customWhisperSound = false,
+        whisperSoundPreset = "default",
+        whisperSoundID = 567482,
+    }
+}
+
+-- ============================================================================
+-- INITIALIZATION
+-- ============================================================================
+
+function AbstractTweaks:OnInitialize()
     LOADOUT_SERIALIZATION_VERSION = C_Traits.GetLoadoutSerializationVersion and C_Traits.GetLoadoutSerializationVersion() or 1
     
-    StaticPopupDialogs["ABSTRACTTWEAKS_TALENT_IMPORT_ERROR"] = {
-        text = "%s",
-        button1 = OKAY,
-        timeout = 0,
-        whileDead = 1,
-        hideOnEscape = 1,
-    }
+    self.db = LibStub("AceDB-3.0"):New("AbstractTweaksDB", defaults, true)
     
-    -- Register diagnostic slash command
-    SLASH_ABSTRACTTWEAKS1 = "/tweaks"
-    SlashCmdList["ABSTRACTTWEAKS"] = function(msg)
-        if msg == "status" then
-            print("|cff00FF7FAbstract Tweaks Status:|r")
-            if Tweaks.db then
-                print("  Reveal Map: " .. tostring(Tweaks.db.profile.revealMap))
-                print("  Recolor Delve Pins: " .. tostring(Tweaks.db.profile.recolorDelvePins))
-                print("  Last Revealed Map ID: " .. tostring(Tweaks.lastRevealedMapID or "none"))
-                local currentMap = C_Map.GetBestMapForUnit("player")
-                print("  Current Map ID: " .. tostring(currentMap or "unknown"))
-                print("  Tweaks Initialized: " .. tostring(Tweaks.tweaksInitialized))
-                
-                -- Show tile database status
-                if AbstractTweaks.TileDatabase and next(AbstractTweaks.TileDatabase) then
-                    local stats = AbstractTweaks:GetTileDatabaseStats()
-                    print("  Tile Database: " .. stats.maps .. " maps, " .. stats.tiles .. " tiles")
-                else
-                    print("  Tile Database: Empty (run /extracttiles to populate)")
-                end
+    -- Initialize Tile Database
+    self:InitializeTileDatabase()
+    
+    -- Register slash commands
+    self:RegisterChatCommand("tweaks", "SlashCommand")
+    self:RegisterChatCommand("abstracttweaks", "SlashCommand")
+    self:RegisterChatCommand("at", "SlashCommand")
+    
+    -- Register diagnostic slash commands
+    SLASH_ABSTRACTTWEAKSSTATUS1 = "/tweaksstatus"
+    SlashCmdList["ABSTRACTTWEAKSSTATUS"] = function(msg)
+        print("|cff00FF7FAbstract Tweaks Status:|r")
+        if self.db then
+            print("  Reveal Map: " .. tostring(self.db.profile.revealMap))
+            print("  Recolor Delve Pins: " .. tostring(self.db.profile.recolorDelvePins))
+            print("  Last Revealed Map ID: " .. tostring(self.lastRevealedMapID or "none"))
+            local currentMap = C_Map.GetBestMapForUnit("player")
+            print("  Current Map ID: " .. tostring(currentMap or "unknown"))
+            print("  Tweaks Initialized: " .. tostring(self.tweaksInitialized))
+            
+            -- Show tile database status
+            if self.TileDatabase and next(self.TileDatabase) then
+                local stats = self:GetTileDatabaseStats()
+                print("  Tile Database: " .. stats.maps .. " maps, " .. stats.tiles .. " tiles")
             else
-                print("  Database not ready")
-            end
-        elseif msg == "talent" then
-            print("|cff00FF7FAbstract Tweaks:|r Checking talent UI status...")
-            print("  Blizzard_ClassTalentUI loaded:", C_AddOns.IsAddOnLoaded("Blizzard_ClassTalentUI"))
-            print("  PlayerSpellsFrame exists:", PlayerSpellsFrame ~= nil)
-            print("  ClassTalentFrame exists:", ClassTalentFrame ~= nil)
-            print("  ClassTalentLoadoutImportDialog exists:", ClassTalentLoadoutImportDialog ~= nil)
-            if ClassTalentLoadoutImportDialog then
-                print("  Attempting to set up import hook...")
-                Tweaks:SetupTalentImportHook()
-            else
-                print("  Import dialog not available yet")
+                print("  Tile Database: Empty")
             end
         else
-            print("|cff00FF7FAbstract Tweaks Commands:|r")
-            print("  /tweaks status - Show current status")
-            print("  /tweaks talent - Check talent UI status (run with talents open, before clicking Import)")
+            print("  Database not ready")
         end
     end
     
-    self:RegisterMessage("ABSTRACTTWEAKS_DB_READY", "OnDBReady")
+    -- Print welcome message
+    print("|cff00FF7FAbstract Tweaks|r v" .. self.version .. " loaded. Type |cff00FFFF/tweaks|r for options.")
 end
 
-function Tweaks:OnDBReady()
-    -- Get database reference from parent addon (share the same database)
-    self.db = AbstractTweaks.db
-    
-    -- Ensure delve pin color is properly initialized
+function AbstractTweaks:OnEnable()
+    -- Ensure delve pin colors are properly initialized
     if not self.db.profile.delvePinColor or type(self.db.profile.delvePinColor) ~= "table" then
         self.db.profile.delvePinColor = { r = 0.2, g = 1.0, b = 0.8, a = 1.0 }
-    else
-        -- Ensure all color values are numbers
-        if type(self.db.profile.delvePinColor.r) ~= "number" then
-            self.db.profile.delvePinColor.r = 0.2
-        end
-        if type(self.db.profile.delvePinColor.g) ~= "number" then
-            self.db.profile.delvePinColor.g = 1.0
-        end
-        if type(self.db.profile.delvePinColor.b) ~= "number" then
-            self.db.profile.delvePinColor.b = 0.8
-        end
-        if type(self.db.profile.delvePinColor.a) ~= "number" then
-            self.db.profile.delvePinColor.a = 1.0
-        end
     end
     
-    -- Ensure bountiful delve pin color is properly initialized
     if not self.db.profile.bountifulDelvePinColor or type(self.db.profile.bountifulDelvePinColor) ~= "table" then
         self.db.profile.bountifulDelvePinColor = { r = 1.0, g = 0.84, b = 0.0, a = 1.0 }
-    else
-        -- Ensure all color values are numbers
-        if type(self.db.profile.bountifulDelvePinColor.r) ~= "number" then
-            self.db.profile.bountifulDelvePinColor.r = 1.0
-        end
-        if type(self.db.profile.bountifulDelvePinColor.g) ~= "number" then
-            self.db.profile.bountifulDelvePinColor.g = 0.84
-        end
-        if type(self.db.profile.bountifulDelvePinColor.b) ~= "number" then
-            self.db.profile.bountifulDelvePinColor.b = 0.0
-        end
-        if type(self.db.profile.bountifulDelvePinColor.a) ~= "number" then
-            self.db.profile.bountifulDelvePinColor.a = 1.0
-        end
     end
     
+    -- Register events
     self:RegisterEvent("PLAYER_ENTERING_WORLD")
     self:RegisterEvent("PLAYER_LOGIN")
     self:RegisterEvent("BAG_UPDATE_DELAYED")
@@ -131,7 +164,6 @@ function Tweaks:OnDBReady()
     -- Immediate bag bar hiding setup
     if self.db.profile.hideBagBar then
         self:HideBagBar()
-        -- Set up repeated attempts to catch late-loading frames
         C_Timer.After(0.5, function() self:HideBagBar() end)
         C_Timer.After(2, function() self:HideBagBar() end)
         C_Timer.After(5, function() self:HideBagBar() end)
@@ -147,12 +179,12 @@ function Tweaks:OnDBReady()
         self:HookAutoDelete()
     end
     
-    -- Setup talent import - hook when talent UI is ready
+    -- Setup talent import
     if self.db.profile.importOverwriteEnabled then
         self:SetupTalentImportWhenReady()
     end
     
-    -- Setup auto keystone insertion (will hook when Blizzard_ChallengesUI loads)
+    -- Setup auto keystone insertion
     if self.db.profile.autoInsertKey then
         self:HookKeystoneFrame()
     end
@@ -174,10 +206,7 @@ function Tweaks:OnDBReady()
         self:SetupCustomWhisperSound()
     end
     
-    -- Use event-based approach instead of constant ticker
-    -- Bag bar hiding is handled by UPDATE_INVENTORY_DURABILITY event
-    
-    -- Register quest and gossip frame events to apply scale/position
+    -- Register quest and gossip frame events
     self:RegisterEvent("QUEST_DETAIL")
     self:RegisterEvent("QUEST_PROGRESS")
     self:RegisterEvent("QUEST_COMPLETE")
@@ -188,7 +217,6 @@ function Tweaks:OnDBReady()
     if PVEFrame then
         self:HookScript(PVEFrame, "OnShow", "ApplyGroupFinderScale")
     else
-        -- Wait for it to load
         C_Timer.After(2, function()
             if PVEFrame then
                 self:HookScript(PVEFrame, "OnShow", "ApplyGroupFinderScale")
@@ -196,20 +224,329 @@ function Tweaks:OnDBReady()
         end)
     end
     
-    -- Apply quest frame scaling on load
+    -- Apply initial scaling
     self:ApplyQuestFrameScale()
-    
-    -- Apply group finder scaling on load
     self:ApplyGroupFinderScale()
+    
+    -- Set up options panel
+    C_Timer.After(0.5, function()
+        self:SetupOptions()
+    end)
 end
 
-function Tweaks:UPDATE_INVENTORY_DURABILITY()
+-- ============================================================================
+-- SLASH COMMAND HANDLER
+-- ============================================================================
+
+function AbstractTweaks:SlashCommand(input)
+    -- Open options panel using AceConfigDialog
+    local AceConfigDialog = LibStub("AceConfigDialog-3.0")
+    AceConfigDialog:Open("AbstractTweaks")
+end
+
+-- ============================================================================
+-- TILE DATABASE FUNCTIONS
+-- ============================================================================
+
+function AbstractTweaks:InitializeTileDatabase()
+    if not self.TileDatabase then
+        self.TileDatabase = {}
+    end
+end
+
+function AbstractTweaks:GetMapTileData(mapID)
+    if self.TileDatabase and self.TileDatabase[mapID] then
+        return self.TileDatabase[mapID]
+    end
+    return nil
+end
+
+function AbstractTweaks:GetTileDatabaseStats()
+    local mapCount = 0
+    local tileCount = 0
+    
+    if self.TileDatabase then
+        for mapID, tiles in pairs(self.TileDatabase) do
+            mapCount = mapCount + 1
+            for key, fileIDs in pairs(tiles) do
+                local _, count = string.gsub(fileIDs, ",", "")
+                tileCount = tileCount + count + 1
+            end
+        end
+    end
+    
+    return {
+        maps = mapCount,
+        tiles = tileCount
+    }
+end
+
+-- ============================================================================
+-- OPTIONS PANEL
+-- ============================================================================
+
+function AbstractTweaks:SetupOptions()
+    local AceConfig = LibStub("AceConfig-3.0")
+    local AceConfigDialog = LibStub("AceConfigDialog-3.0")
+    
+    local options = {
+        name = "Abstract Tweaks",
+        type = "group",
+        args = {
+            header = {
+                type = "description",
+                name = "|cff00FF7FAbstract Tweaks|r v" .. self.version .. "\n" ..
+                       "Quality-of-life tweaks for World of Warcraft\n\n",
+                fontSize = "medium",
+                order = 1,
+            }
+        }
+    }
+    
+    -- Add tweak options
+    local tweakOptions = self:GetOptions()
+    if tweakOptions and tweakOptions.args then
+        for k, v in pairs(tweakOptions.args) do
+            options.args[k] = v
+        end
+    end
+    
+    AceConfig:RegisterOptionsTable("AbstractTweaks", options)
+    AceConfigDialog:AddToBlizOptions("AbstractTweaks", "Abstract Tweaks")
+end
+
+-- ============================================================================
+-- EVENT HANDLERS
+-- ============================================================================
+
+function AbstractTweaks:UPDATE_INVENTORY_DURABILITY()
     if self.db.profile.hideBagBar then
         self:HideBagBar()
     end
 end
 
-function Tweaks:ApplyGroupFinderScale()
+function AbstractTweaks:BAG_UPDATE_DELAYED()
+    if self.db.profile.hideBagBar then
+        self:HideBagBar()
+    end
+end
+
+function AbstractTweaks:PLAYER_LOGIN()
+    if self.db.profile.hideBagBar then
+        C_Timer.After(1, function()
+            self:HideBagBar()
+        end)
+        C_Timer.After(3, function()
+            self:HideBagBar()
+        end)
+    end
+end
+
+function AbstractTweaks:ADDON_LOADED(event, addonName)
+    if addonName == "Blizzard_EditMode" or addonName == "Blizzard_BagBar" then
+        if self.db and self.db.profile.hideBagBar then
+            C_Timer.After(0.5, function()
+                self:HideBagBar()
+            end)
+        end
+    end
+end
+
+function AbstractTweaks:PLAYER_ENTERING_WORLD()
+    if self.tweaksInitialized then 
+        -- Refresh delve pins on zone change
+        if self.db and self.db.profile.recolorDelvePins then
+            C_Timer.After(1, function()
+                if self.db and self.db.profile.recolorDelvePins then
+                    self:ColorDelvePins()
+                    self:ColorMinimapDelvePins()
+                end
+            end)
+            C_Timer.After(3, function()
+                if self.db and self.db.profile.recolorDelvePins then
+                    self:ColorMinimapDelvePins()
+                end
+            end)
+        end
+        
+        -- Reveal map on zone change if enabled
+        if self.db and self.db.profile.revealMap then
+            local currentMapID = C_Map.GetBestMapForUnit("player")
+            if currentMapID and currentMapID ~= self.lastRevealedMapID then
+                self.lastRevealedMapID = currentMapID
+                C_Timer.After(2, function()
+                    if self.db and self.db.profile.revealMap then
+                        self:RevealMap()
+                    end
+                end)
+            end
+        end
+        return 
+    end
+    self.tweaksInitialized = true
+    
+    -- Apply tweaks with delays
+    C_Timer.After(0.5, function() self:ApplyTweaks() end)
+    C_Timer.After(2, function() self:ApplyTweaks() end)
+    C_Timer.After(5, function() self:ApplyTweaks() end)
+    
+    -- Bag bar hiding with repeated attempts
+    if self.db.profile.hideBagBar then
+        self:HideBagBar()
+        C_Timer.After(1, function() self:HideBagBar() end)
+        C_Timer.After(3, function() self:HideBagBar() end)
+    end
+    
+    -- Reveal map if enabled (initial load only)
+    if self.db.profile.revealMap then
+        local currentMapID = C_Map.GetBestMapForUnit("player")
+        if currentMapID then
+            self.lastRevealedMapID = currentMapID
+            C_Timer.After(3, function()
+                if self.db and self.db.profile.revealMap then
+                    self:RevealMap()
+                end
+            end)
+        end
+    end
+end
+
+function AbstractTweaks:ACHIEVEMENT_EARNED(event, achievementID)
+    if self.db.profile.autoScreenshot and achievementID then
+        Screenshot()
+        print("|cff00ff00[Abstract Tweaks]|r Achievement earned, screenshot taken.")
+    end
+end
+
+function AbstractTweaks:LOOT_READY()
+    if GetCVarBool("autoLootDefault") ~= IsModifiedClick("AUTOLOOTTOGGLE") then
+        if (GetTime() - lootEpoch) >= LOOT_DELAY then
+            if TSMDestroyBtn and TSMDestroyBtn:IsShown() and TSMDestroyBtn:GetButtonState() == "DISABLED" then
+                lootEpoch = GetTime()
+                return
+            end
+            for i = GetNumLootItems(), 1, -1 do
+                LootSlot(i)
+            end
+            lootEpoch = GetTime()
+        end
+    end
+end
+
+function AbstractTweaks:QUEST_DETAIL()
+    self:ApplyQuestFrameScale()
+end
+
+function AbstractTweaks:QUEST_PROGRESS()
+    self:ApplyQuestFrameScale()
+end
+
+function AbstractTweaks:QUEST_COMPLETE()
+    self:ApplyQuestFrameScale()
+end
+
+function AbstractTweaks:QUEST_GREETING()
+    self:ApplyQuestFrameScale()
+end
+
+function AbstractTweaks:GOSSIP_SHOW()
+    self:ApplyQuestFrameScale()
+end
+
+function AbstractTweaks:LORE_TEXT_UPDATED_CAMPAIGN()
+    if self.db and self.db.profile.recolorDelvePins then
+        C_Timer.After(0.2, function()
+            self:ColorDelvePins()
+        end)
+    end
+end
+
+function AbstractTweaks:QUEST_LOG_UPDATE()
+    if self.db and self.db.profile.recolorDelvePins then
+        C_Timer.After(0.2, function()
+            self:ColorDelvePins()
+        end)
+    end
+end
+
+function AbstractTweaks:MERCHANT_SHOW()
+    if self.db.profile.autoRepair then
+        C_Timer.After(0.5, function()
+            if self.db.profile.autoRepair then
+                self:AutoRepair()
+            end
+        end)
+    end
+    
+    if self.db.profile.autoSellJunk then
+        C_Timer.After(0.5, function()
+            if self.db.profile.autoSellJunk then
+                self:AutoSellJunk()
+            end
+        end)
+    end
+end
+
+function AbstractTweaks:MERCHANT_CLOSED()
+    -- Cleanup if needed
+end
+
+function AbstractTweaks:UNIT_SPELLCAST_CHANNEL_START(event, unit, _, spellID)
+    if unit ~= "player" then return end
+    
+    local FishingIDs = {
+        [131474] = true, [131490] = true, [131476] = true, [7620] = true,
+        [7731] = true, [7732] = true, [18248] = true, [33095] = true,
+        [51294] = true, [88868] = true, [110410] = true, [158743] = true, [377895] = true,
+    }
+    
+    if not FishingIDs[spellID] or not self.fishingButton then return end
+    
+    SetCVar("SoftTargetInteract", "3")
+    SetCVar("SoftTargetInteractArc", "2")
+    SetCVar("SoftTargetInteractRange", "60")
+    
+    if InCombatLockdown() then return end
+    
+    local key1, key2 = GetBindingKey("ABSTRACTTWEAKS_FISHING")
+    if key1 then
+        SetOverrideBinding(self.fishingButton, true, key1, "INTERACTTARGET")
+    end
+    if key2 then
+        SetOverrideBinding(self.fishingButton, true, key2, "INTERACTTARGET")
+    end
+end
+
+function AbstractTweaks:UNIT_SPELLCAST_CHANNEL_STOP(event, unit, _, spellID)
+    if unit ~= "player" then return end
+    
+    local FishingIDs = {
+        [131474] = true, [131490] = true, [131476] = true, [7620] = true,
+        [7731] = true, [7732] = true, [18248] = true, [33095] = true,
+        [51294] = true, [88868] = true, [110410] = true, [158743] = true, [377895] = true,
+    }
+    
+    if not FishingIDs[spellID] or not self.fishingButton then return end
+    
+    if not InCombatLockdown() then
+        ClearOverrideBindings(self.fishingButton)
+    end
+end
+
+function AbstractTweaks:CHAT_MSG_WHISPER(event, text, playerName, ...)
+    if self.db and self.db.profile.customWhisperSound and self.db.profile.whisperSoundID then
+        PlaySoundFile(self.db.profile.whisperSoundID)
+    end
+end
+
+function AbstractTweaks:CHAT_MSG_BN_WHISPER(event, text, playerName, ...)
+    if self.db and self.db.profile.customWhisperSound and self.db.profile.whisperSoundID then
+        PlaySoundFile(self.db.profile.whisperSoundID)
+    end
+end
+
+
+function AbstractTweaks:ApplyGroupFinderScale()
     local scale = self.db.profile.groupFinderScale or 1.0
     local useCustomPos = self.db.profile.groupFinderCustomPosition
     local x = self.db.profile.groupFinderX
@@ -225,7 +562,7 @@ function Tweaks:ApplyGroupFinderScale()
     end
 end
 
-function Tweaks:ApplyQuestFrameScale()
+function AbstractTweaks:ApplyQuestFrameScale()
     local scale = self.db.profile.questFrameScale or 1.0
     local useCustomPos = self.db.profile.questFrameCustomPosition
     local x = self.db.profile.questFrameX
@@ -250,27 +587,27 @@ function Tweaks:ApplyQuestFrameScale()
     end
 end
 
-function Tweaks:QUEST_DETAIL()
+function AbstractTweaks:QUEST_DETAIL()
     self:ApplyQuestFrameScale()
 end
 
-function Tweaks:QUEST_PROGRESS()
+function AbstractTweaks:QUEST_PROGRESS()
     self:ApplyQuestFrameScale()
 end
 
-function Tweaks:QUEST_COMPLETE()
+function AbstractTweaks:QUEST_COMPLETE()
     self:ApplyQuestFrameScale()
 end
 
-function Tweaks:QUEST_GREETING()
+function AbstractTweaks:QUEST_GREETING()
     self:ApplyQuestFrameScale()
 end
 
-function Tweaks:GOSSIP_SHOW()
+function AbstractTweaks:GOSSIP_SHOW()
     self:ApplyQuestFrameScale()
 end
 
-function Tweaks:LOOT_READY()
+function AbstractTweaks:LOOT_READY()
     -- Instant looting: Auto-loot all items immediately when loot window opens
     if GetCVarBool("autoLootDefault") ~= IsModifiedClick("AUTOLOOTTOGGLE") then
         if (GetTime() - lootEpoch) >= LOOT_DELAY then
@@ -288,13 +625,13 @@ function Tweaks:LOOT_READY()
     end
 end
 
-function Tweaks:BAG_UPDATE_DELAYED()
+function AbstractTweaks:BAG_UPDATE_DELAYED()
     if self.db.profile.hideBagBar then
         self:HideBagBar()
     end
 end
 
-function Tweaks:PLAYER_LOGIN()
+function AbstractTweaks:PLAYER_LOGIN()
     if self.db.profile.hideBagBar then
         C_Timer.After(1, function()
             self:HideBagBar()
@@ -305,7 +642,7 @@ function Tweaks:PLAYER_LOGIN()
     end
 end
 
-function Tweaks:ADDON_LOADED(event, addonName)
+function AbstractTweaks:ADDON_LOADED(event, addonName)
     -- Hide bag bar when relevant addons load
     if addonName == "Blizzard_EditMode" or addonName == "Blizzard_BagBar" then
         if self.db and self.db.profile.hideBagBar then
@@ -321,7 +658,7 @@ function Tweaks:ADDON_LOADED(event, addonName)
     end
 end
 
-function Tweaks:PLAYER_ENTERING_WORLD()
+function AbstractTweaks:PLAYER_ENTERING_WORLD()
     -- Only run tweaks setup once, not on every zone change
     if self.tweaksInitialized then 
         -- Refresh delve pins on zone change (reduced from 5 calls to 2)
@@ -381,14 +718,14 @@ function Tweaks:PLAYER_ENTERING_WORLD()
     end
 end
 
-function Tweaks:ACHIEVEMENT_EARNED(event, achievementID)
+function AbstractTweaks:ACHIEVEMENT_EARNED(event, achievementID)
     if self.db.profile.autoScreenshot and achievementID then
         Screenshot()
         print("|cff00ff00[Abstract Tweaks]|r Achievement earned, screenshot taken.")
     end
 end
 
-function Tweaks:RevealMap()
+function AbstractTweaks:RevealMap()
     -- Implementation based on Leatrix Maps approach
     -- Hook into the MapExplorationPinTemplate to add unexplored textures
     
@@ -435,7 +772,7 @@ end
 -- WORLDMAP HOOKS
 -- ============================================================================
 
-function Tweaks:HookWorldMapFrame()
+function AbstractTweaks:HookWorldMapFrame()
     if self.worldMapHooked then return end
     if not WorldMapFrame then return end
     
@@ -582,7 +919,7 @@ end
 -- SKIP CUTSCENES
 -- ============================================================================
 
-function Tweaks:HookCutscenes()
+function AbstractTweaks:HookCutscenes()
     if self.cutscenesHooked then return end
     
     local module = self
@@ -612,7 +949,7 @@ end
 -- AUTO INSERT MYTHIC KEYSTONE
 -- ============================================================================
 
-function Tweaks:HookKeystoneFrame()
+function AbstractTweaks:HookKeystoneFrame()
     if self.keystoneHooked then return end
     
     -- Wait for Blizzard_ChallengesUI to load
@@ -622,7 +959,7 @@ function Tweaks:HookKeystoneFrame()
         frame:RegisterEvent("ADDON_LOADED")
         frame:SetScript("OnEvent", function(self, event, addon)
             if addon == "Blizzard_ChallengesUI" and ChallengesKeystoneFrame then
-                Tweaks:HookKeystoneFrame()
+                AbstractTweaks:HookKeystoneFrame()
                 frame:UnregisterEvent("ADDON_LOADED")
             end
         end)
@@ -641,7 +978,7 @@ function Tweaks:HookKeystoneFrame()
     self.keystoneHooked = true
 end
 
-function Tweaks:AutoInsertKeystone()
+function AbstractTweaks:AutoInsertKeystone()
     -- Check if we can access the keystone slot
     if not C_ChallengeMode or not C_ChallengeMode.SlotKeystone then return end
     
@@ -676,7 +1013,7 @@ end
 -- AUTO DELETE CONFIRMATION
 -- ============================================================================
 
-function Tweaks:HookAutoDelete()
+function AbstractTweaks:HookAutoDelete()
     if self.autoDeleteHooked then return end
     
     local module = self
@@ -741,7 +1078,7 @@ function Tweaks:HookAutoDelete()
     self.autoDeleteHooked = true
 end
 
-function Tweaks:HideBagBar()
+function AbstractTweaks:HideBagBar()
     if BagsBar then
         BagsBar:SetParent(hiddenFrame)
         BagsBar:Hide()
@@ -751,7 +1088,7 @@ function Tweaks:HideBagBar()
         -- Hook Show to prevent it from appearing
         if not BagsBar.abstractHooked then
             hooksecurefunc(BagsBar, "Show", function()
-                if Tweaks.db and Tweaks.db.profile.hideBagBar then
+                if AbstractTweaks.db and AbstractTweaks.db.profile.hideBagBar then
                     BagsBar:Hide()
                 end
             end)
@@ -767,7 +1104,7 @@ function Tweaks:HideBagBar()
         -- Hook Show to prevent it from appearing
         if not MicroButtonAndBagsBar.BagsBar.abstractHooked then
             hooksecurefunc(MicroButtonAndBagsBar.BagsBar, "Show", function()
-                if Tweaks.db and Tweaks.db.profile.hideBagBar then
+                if AbstractTweaks.db and AbstractTweaks.db.profile.hideBagBar then
                     MicroButtonAndBagsBar.BagsBar:Hide()
                 end
             end)
@@ -786,7 +1123,7 @@ function Tweaks:HideBagBar()
             -- Hook Show to prevent it from appearing
             if not bagBar.abstractHooked then
                 hooksecurefunc(bagBar, "Show", function()
-                    if Tweaks.db and Tweaks.db.profile.hideBagBar then
+                    if AbstractTweaks.db and AbstractTweaks.db.profile.hideBagBar then
                         bagBar:Hide()
                     end
                 end)
@@ -796,7 +1133,7 @@ function Tweaks:HideBagBar()
     end
 end
 
-function Tweaks:ShowBagBar()
+function AbstractTweaks:ShowBagBar()
     -- Cancel ticker when showing
     if self.bagBarTicker then
         self.bagBarTicker:Cancel()
@@ -825,7 +1162,7 @@ function Tweaks:ShowBagBar()
     end
 end
 
-function Tweaks:ApplyTweaks()
+function AbstractTweaks:ApplyTweaks()
     if self.db.profile.fastLoot then
         -- Set Auto Loot CVars
         SetCVar("autoLootDefault", "1")
@@ -883,7 +1220,7 @@ end
 -- MERCHANT FUNCTIONS
 -- ============================================================================
 
-function Tweaks:MERCHANT_SHOW()
+function AbstractTweaks:MERCHANT_SHOW()
     if self.db.profile.autoRepair then
         C_Timer.After(0.5, function()
             if self.db.profile.autoRepair then
@@ -901,11 +1238,11 @@ function Tweaks:MERCHANT_SHOW()
     end
 end
 
-function Tweaks:MERCHANT_CLOSED()
+function AbstractTweaks:MERCHANT_CLOSED()
     -- Cleanup if needed
 end
 
-function Tweaks:AutoRepair()
+function AbstractTweaks:AutoRepair()
     if not CanMerchantRepair() then
         return
     end
@@ -935,7 +1272,7 @@ function Tweaks:AutoRepair()
     end
 end
 
-function Tweaks:AutoSellJunk()
+function AbstractTweaks:AutoSellJunk()
     if not MerchantFrame:IsShown() then
         return
     end
@@ -969,7 +1306,7 @@ function Tweaks:AutoSellJunk()
     end
 end
 
-function Tweaks:GetOptions()
+function AbstractTweaks:GetOptions()
     return {
         type = "group", 
         name = "Tweaks",
@@ -1398,12 +1735,12 @@ end
 -- Global function called by the keybinding
 function AbstractTweaks_FishingRun()
     local Tweaks = AbstractTweaks:GetModule("Tweaks", true)
-    if not Tweaks or not Tweaks.db or not Tweaks.db.profile.oneKeyFishing then return end
+    if not Tweaks or not AbstractTweaks.db or not AbstractTweaks.db.profile.oneKeyFishing then return end
     
     -- Don't run in combat or while flying
     if InCombatLockdown() or IsFlying() or IsMounted() then return end
     
-    local button = Tweaks:GetFishingButton()
+    local button = AbstractTweaks:GetFishingButton()
     if not button then return end
     
     -- Always set the fishing spell - event handlers will switch to INTERACTTARGET when fishing starts
@@ -1418,11 +1755,11 @@ function AbstractTweaks_FishingRun()
     end
 end
 
-function Tweaks:GetFishingButton()
+function AbstractTweaks:GetFishingButton()
     return self.fishingButton
 end
 
-function Tweaks:SetupOneKeyFishing()
+function AbstractTweaks:SetupOneKeyFishing()
     -- Create the secure action button if it doesn't exist
     if not self.fishingButton then
         self.fishingButton = CreateFrame("Button", "AbstractTweaks_FishingButton", UIParent, "SecureActionButtonTemplate")
@@ -1440,13 +1777,13 @@ function Tweaks:SetupOneKeyFishing()
     
     -- Only show instructions on first enable
     if self.db.profile.oneKeyFishingFirstTime then
-        print("Abstract Tweaks: One-Key Fishing enabled. Set a keybind in Interface > Keybindings > Abstract Tweaks > One-Key Fishing")
-        print("Abstract Tweaks: Hover over the fishing bobber and press your keybind to hook the fish")
+        print("Abstract AbstractTweaks: One-Key Fishing enabled. Set a keybind in Interface > Keybindings > Abstract Tweaks > One-Key Fishing")
+        print("Abstract AbstractTweaks: Hover over the fishing bobber and press your keybind to hook the fish")
         self.db.profile.oneKeyFishingFirstTime = false
     end
 end
 
-function Tweaks:DisableOneKeyFishing()
+function AbstractTweaks:DisableOneKeyFishing()
     if self.fishingButton then
         -- Clear any keybindings
         local key1, key2 = GetBindingKey("ABSTRACTTWEAKS_FISHING")
@@ -1470,7 +1807,7 @@ function Tweaks:DisableOneKeyFishing()
 end
 
 -- Event handlers for fishing state changes
-function Tweaks:UNIT_SPELLCAST_CHANNEL_START(event, unit, _, spellID)
+function AbstractTweaks:UNIT_SPELLCAST_CHANNEL_START(event, unit, _, spellID)
     if unit ~= "player" then return end
     
     -- Check if it's a fishing spell (all known fishing spell IDs)
@@ -1509,7 +1846,7 @@ function Tweaks:UNIT_SPELLCAST_CHANNEL_START(event, unit, _, spellID)
     end
 end
 
-function Tweaks:UNIT_SPELLCAST_CHANNEL_STOP(event, unit, _, spellID)
+function AbstractTweaks:UNIT_SPELLCAST_CHANNEL_STOP(event, unit, _, spellID)
     if unit ~= "player" then return end
     
     -- Check if it's a fishing spell (all known fishing spell IDs)
@@ -1541,7 +1878,7 @@ end
 -- CUSTOM WHISPER SOUND FUNCTIONALITY
 -- ============================================================================
 
-function Tweaks:SetupCustomWhisperSound()
+function AbstractTweaks:SetupCustomWhisperSound()
     if self.whisperSoundHooked then return end
     
     -- Mute the default whisper sound files (using file data IDs)
@@ -1556,7 +1893,7 @@ function Tweaks:SetupCustomWhisperSound()
     print("|cff00ff00[Abstract Tweaks]|r Custom whisper sound enabled. Test it by whispering yourself: /w " .. UnitName("player") .. " test")
 end
 
-function Tweaks:DisableCustomWhisperSound()
+function AbstractTweaks:DisableCustomWhisperSound()
     -- Unmute the default whisper sound files (using file data IDs)
     UnmuteSoundFile(567482)  -- TellMessage (main whisper sound)
     UnmuteSoundFile(567333)  -- BNet whisper sound
@@ -1567,7 +1904,7 @@ function Tweaks:DisableCustomWhisperSound()
     print("|cff00ff00[Abstract Tweaks]|r Custom whisper sound disabled.")
 end
 
-function Tweaks:CHAT_MSG_WHISPER(event, text, playerName, ...)
+function AbstractTweaks:CHAT_MSG_WHISPER(event, text, playerName, ...)
     -- Play custom sound when receiving a whisper
     if self.db and self.db.profile.customWhisperSound and self.db.profile.whisperSoundID then
         -- All sounds now use PlaySoundFile with file data IDs
@@ -1575,7 +1912,7 @@ function Tweaks:CHAT_MSG_WHISPER(event, text, playerName, ...)
     end
 end
 
-function Tweaks:CHAT_MSG_BN_WHISPER(event, text, playerName, ...)
+function AbstractTweaks:CHAT_MSG_BN_WHISPER(event, text, playerName, ...)
     -- Play custom sound when receiving a Battle.net whisper
     if self.db and self.db.profile.customWhisperSound and self.db.profile.whisperSoundID then
         -- All sounds now use PlaySoundFile with file data IDs
@@ -1587,7 +1924,7 @@ end
 -- TALENT IMPORT OVERWRITE FUNCTIONALITY
 -- ============================================================================
 
-function Tweaks:SetupTalentImportWhenReady()
+function AbstractTweaks:SetupTalentImportWhenReady()
     if ClassTalentLoadoutImportDialog then
         self:SetupTalentImportHook()
         return
@@ -1629,7 +1966,7 @@ function Tweaks:SetupTalentImportWhenReady()
     end
 end
 
-function Tweaks:HookTalentFrame(talentFrame)
+function AbstractTweaks:HookTalentFrame(talentFrame)
     if self.talentFrameHooked then
         return -- Already hooked
     end
@@ -1653,7 +1990,7 @@ function Tweaks:HookTalentFrame(talentFrame)
     self.talentFrameHooked = true
 end
 
-function Tweaks:ScanForTalentFrame()
+function AbstractTweaks:ScanForTalentFrame()
     -- Scan UIParent children to find talent-related frames
     for _, child in ipairs({UIParent:GetChildren()}) do
         if child.GetName then
@@ -1668,7 +2005,7 @@ function Tweaks:ScanForTalentFrame()
     end
 end
 
-function Tweaks:HookTalentFrameForPolling(talentFrame)
+function AbstractTweaks:HookTalentFrameForPolling(talentFrame)
     -- Accept passed frame or try to find one
     talentFrame = talentFrame or PlayerSpellsFrame or ClassTalentFrame or PlayerTalentFrame
     
@@ -1699,7 +2036,7 @@ function Tweaks:HookTalentFrameForPolling(talentFrame)
     CheckForDialog()
 end
 
-function Tweaks:SetupTalentImportHook()
+function AbstractTweaks:SetupTalentImportHook()
     if not ClassTalentLoadoutImportDialog or self.importCheckbox then
         return
     end
@@ -1715,7 +2052,7 @@ function Tweaks:SetupTalentImportHook()
     end
 end
 
-function Tweaks:DisableTalentImportHook()
+function AbstractTweaks:DisableTalentImportHook()
     self:UnhookAll()
     if self.importCheckbox then
         self.importCheckbox:Hide()
@@ -1727,7 +2064,7 @@ function Tweaks:DisableTalentImportHook()
     end
 end
 
-function Tweaks:CreateImportCheckbox(dialog)
+function AbstractTweaks:CreateImportCheckbox(dialog)
     if self.importCheckbox then
         self.importCheckbox:Show()
         return
@@ -1766,7 +2103,7 @@ function Tweaks:CreateImportCheckbox(dialog)
     self.importCheckbox = checkbox
 end
 
-function Tweaks:CreateImportAcceptButton(dialog)
+function AbstractTweaks:CreateImportAcceptButton(dialog)
     self:SecureHook(dialog, "OnTextChanged", function() 
         if self.importAcceptButton then
             self.importAcceptButton:SetEnabled(dialog.ImportControl:HasText()) 
@@ -1792,7 +2129,7 @@ function Tweaks:CreateImportAcceptButton(dialog)
     self.importAcceptButton = acceptButton
 end
 
-function Tweaks:OnImportCheckboxClick(checkbox)
+function AbstractTweaks:OnImportCheckboxClick(checkbox)
     local dialog = checkbox:GetParent()
     dialog.NameControl:SetShown(not checkbox:GetChecked())
     dialog.NameControl:SetText(checkbox:GetChecked() and "" or "")
@@ -1809,16 +2146,16 @@ function Tweaks:OnImportCheckboxClick(checkbox)
     end
 end
 
-function Tweaks:GetTreeID()
+function AbstractTweaks:GetTreeID()
     local configInfo = C_Traits.GetConfigInfo(C_ClassTalents.GetActiveConfigID())
     return configInfo and configInfo.treeIDs and configInfo.treeIDs[1]
 end
 
-function Tweaks:ShowImportError(errorString)
+function AbstractTweaks:ShowImportError(errorString)
     StaticPopup_Show("ABSTRACTTWEAKS_TALENT_IMPORT_ERROR", errorString)
 end
 
-function Tweaks:ImportLoadoutIntoActive(importText)
+function AbstractTweaks:ImportLoadoutIntoActive(importText)
     local importStream = ExportUtil.MakeImportDataStream(importText)
     
     local headerValid, serializationVersion, specID, treeHash = ClassTalentImportExportMixin:ReadLoadoutHeader(importStream)
@@ -1852,7 +2189,7 @@ function Tweaks:ImportLoadoutIntoActive(importText)
     return self:DoImport(loadoutEntryInfo)
 end
 
-function Tweaks:DoImport(loadoutEntryInfo)
+function AbstractTweaks:DoImport(loadoutEntryInfo)
     local configID = C_ClassTalents.GetActiveConfigID()
     if not configID then
         return false
@@ -1870,7 +2207,7 @@ function Tweaks:DoImport(loadoutEntryInfo)
     return true
 end
 
-function Tweaks:PurchaseLoadoutEntryInfo(configID, loadoutEntryInfo)
+function AbstractTweaks:PurchaseLoadoutEntryInfo(configID, loadoutEntryInfo)
     local removed = 0
     for i, nodeEntry in pairs(loadoutEntryInfo) do
         local success = false
@@ -1889,7 +2226,7 @@ function Tweaks:PurchaseLoadoutEntryInfo(configID, loadoutEntryInfo)
     return removed
 end
 
-function Tweaks:ConvertToImportLoadoutEntryInfo(treeID, loadoutContent)
+function AbstractTweaks:ConvertToImportLoadoutEntryInfo(treeID, loadoutContent)
     local results = {}
     local treeNodes = C_Traits.GetTreeNodes(treeID)
     local configID = C_ClassTalents.GetActiveConfigID()
@@ -1924,7 +2261,7 @@ end
 -- DELVE PIN RECOLORING
 -- ============================================================================
 
-function Tweaks:SetupDelvePinRecoloring()
+function AbstractTweaks:SetupDelvePinRecoloring()
     if self.delvePinHooked then return end
     
     -- Wait for WorldMapFrame to be available
@@ -1967,7 +2304,7 @@ function Tweaks:SetupDelvePinRecoloring()
     end)
 end
 
-function Tweaks:ColorDelvePins()
+function AbstractTweaks:ColorDelvePins()
     if not WorldMapFrame then return end
     if not WorldMapFrame:IsShown() then return end
     if not self.db or not self.db.profile.recolorDelvePins then return end
@@ -2041,7 +2378,7 @@ function Tweaks:ColorDelvePins()
     end
 end
 
-function Tweaks:LORE_TEXT_UPDATED_CAMPAIGN()
+function AbstractTweaks:LORE_TEXT_UPDATED_CAMPAIGN()
     if self.db and self.db.profile.recolorDelvePins then
         C_Timer.After(0.2, function()
             self:ColorDelvePins()
@@ -2049,7 +2386,7 @@ function Tweaks:LORE_TEXT_UPDATED_CAMPAIGN()
     end
 end
 
-function Tweaks:QUEST_LOG_UPDATE()
+function AbstractTweaks:QUEST_LOG_UPDATE()
     if self.db and self.db.profile.recolorDelvePins then
         C_Timer.After(0.2, function()
             self:ColorDelvePins()
@@ -2057,7 +2394,7 @@ function Tweaks:QUEST_LOG_UPDATE()
     end
 end
 
-function Tweaks:ColorMinimapDelvePins()
+function AbstractTweaks:ColorMinimapDelvePins()
     if not Minimap then return end
     if not self.db or not self.db.profile.recolorDelvePins then return end
     
@@ -2188,7 +2525,7 @@ function Tweaks:ColorMinimapDelvePins()
     end
 end
 
-function Tweaks:RefreshWorldMap()
+function AbstractTweaks:RefreshWorldMap()
     if WorldMapFrame and WorldMapFrame:IsShown() then
         C_Timer.After(0.1, function()
             if WorldMapFrame.RefreshAllDataProviders then
@@ -2199,3 +2536,4 @@ function Tweaks:RefreshWorldMap()
         end)
     end
 end
+
