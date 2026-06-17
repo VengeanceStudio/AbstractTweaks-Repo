@@ -118,9 +118,9 @@ end
 -- SLASH COMMAND HANDLER
 -- ============================================================================
 function AbstractTweaks:SlashCommand(input)
-    -- Open options panel
-    InterfaceOptionsFrame_OpenToCategory("Abstract Tweaks")
-    InterfaceOptionsFrame_OpenToCategory("Abstract Tweaks")  -- Called twice due to Blizzard bug
+    -- Open options panel using AceConfigDialog
+    local AceConfigDialog = LibStub("AceConfigDialog-3.0")
+    AceConfigDialog:Open("AbstractTweaks")
 end
 
 -- ============================================================================
