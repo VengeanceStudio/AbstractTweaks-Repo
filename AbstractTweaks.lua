@@ -1310,40 +1310,44 @@ function AbstractTweaks:GetOptions()
         get = function(info) return self.db.profile[info[#info]] end,
         set = function(info, value) self.db.profile[info[#info]] = value end,
         args = {
-            fastLoot = { name = "Fast Loot", type = "toggle", order = 1,
+            fastLoot = { name = "Fast Loot", type = "toggle", order = 10, width = "full",
                 desc = "Enables auto-loot and instant item pickup without loot window delay",
                 set = function(_, v) self.db.profile.fastLoot = v; self:ApplyTweaks() end },
-            hideGryphons = { name = "Hide Action Bar Art", type = "toggle", order = 2,
+            hideGryphons = { name = "Hide Action Bar Art", type = "toggle", order = 20, width = "full",
                 set = function(_, v) 
                     self.db.profile.hideGryphons = v
                     StaticPopup_Show("ABSTRACTTWEAKS_RELOAD_CONFIRM")
                 end },
-            hideBagBar = { name = "Hide Bag Bar", type = "toggle", order = 3,
+            hideBagBar = { name = "Hide Bag Bar", type = "toggle", order = 30, width = "full",
                 set = function(_, v) self.db.profile.hideBagBar = v; self:ApplyTweaks() end },
             autoRepair = {
                 name = "Auto Repair at Vendors",
                 desc = "Automatically repair all items when opening a merchant that can repair",
                 type = "toggle",
-                order = 5,
+                order = 40,
+                width = "full",
             },
             autoRepairGuild = {
                 name = "Use Guild Bank for Repairs",
                 desc = "Use guild bank funds for repairs if available (requires guild repair privileges)",
                 type = "toggle",
-                order = 6,
+                order = 50,
+                width = "full",
                 disabled = function() return not self.db.profile.autoRepair end,
             },
             autoSellJunk = {
                 name = "Auto Sell Junk at Vendors",
                 desc = "Automatically sell all grey (poor quality) items when opening a merchant",
                 type = "toggle",
-                order = 7,
+                order = 60,
+                width = "full",
             },
             revealMap = {
                 name = "Reveal Entire Map (Remove Fog of War)",
                 desc = "Attempts to hide the fog of war overlay on the world map, revealing unexplored areas. Note: Blizzard has restrictions on this feature - it may not work on all maps or may require opening the map to take effect.",
                 type = "toggle",
-                order = 8,
+                order = 70,
+                width = "full",
                 set = function(_, v)
                     self.db.profile.revealMap = v
                     if v then
@@ -1361,7 +1365,8 @@ function AbstractTweaks:GetOptions()
                 name = "Auto-Fill Delete Confirmation",
                 desc = "Automatically fills in the DELETE confirmation text and enables the delete button when deleting items",
                 type = "toggle",
-                order = 9,
+                order = 80,
+                width = "full",
                 set = function(_, v)
                     self.db.profile.autoDelete = v
                     if v then
@@ -1373,7 +1378,8 @@ function AbstractTweaks:GetOptions()
                 name = "Auto Screenshot on Achievement",
                 desc = "Automatically takes a screenshot whenever you earn an achievement",
                 type = "toggle",
-                order = 10,
+                order = 90,
+                width = "full",
                 set = function(_, v)
                     self.db.profile.autoScreenshot = v
                     if v then
@@ -1387,7 +1393,8 @@ function AbstractTweaks:GetOptions()
                 name = "Skip Cutscenes",
                 desc = "Automatically skips cinematics and movie cutscenes",
                 type = "toggle",
-                order = 11,
+                order = 100,
+                width = "full",
                 set = function(_, v)
                     self.db.profile.skipCutscenes = v
                     if v then
@@ -1399,7 +1406,8 @@ function AbstractTweaks:GetOptions()
                 name = "Auto-Insert Mythic Keystone",
                 desc = "Automatically places Mythic Keystones from your bags into the keystone font",
                 type = "toggle",
-                order = 12,
+                order = 110,
+                width = "full",
                 set = function(_, v)
                     self.db.profile.autoInsertKey = v
                     if v then
@@ -1411,7 +1419,8 @@ function AbstractTweaks:GetOptions()
                 name = "Enable Talent Import Overwrite", 
                 desc = "Adds a checkbox to the talent import dialog to overwrite the current loadout instead of creating a new one",
                 type = "toggle", 
-                order = 13,
+                order = 120,
+                width = "full",
                 set = function(_, v) 
                     self.db.profile.importOverwriteEnabled = v
                     if v then
@@ -1428,7 +1437,8 @@ function AbstractTweaks:GetOptions()
                 min = 0.5,
                 max = 2.0,
                 step = 0.05,
-                order = 14,
+                order = 130,
+                width = "full",
                 set = function(_, v)
                     self.db.profile.questFrameScale = v
                     self:ApplyQuestFrameScale()
@@ -1438,7 +1448,8 @@ function AbstractTweaks:GetOptions()
                 name = "Use Custom Quest/Dialogue Position",
                 desc = "Enable to set a custom default position for Quest and Dialogue/Gossip windows",
                 type = "toggle",
-                order = 15,
+                order = 140,
+                width = "full",
                 set = function(_, v)
                     self.db.profile.questFrameCustomPosition = v
                     self:ApplyQuestFrameScale()
@@ -1451,7 +1462,8 @@ function AbstractTweaks:GetOptions()
                 min = -1200,
                 max = 1200,
                 step = 1,
-                order = 16,
+                order = 150,
+                width = "full",
                 disabled = function() return not self.db.profile.questFrameCustomPosition end,
                 set = function(_, v)
                     self.db.profile.questFrameX = v
@@ -1465,7 +1477,8 @@ function AbstractTweaks:GetOptions()
                 min = -500,
                 max = 500,
                 step = 1,
-                order = 17,
+                order = 160,
+                width = "full",
                 disabled = function() return not self.db.profile.questFrameCustomPosition end,
                 set = function(_, v)
                     self.db.profile.questFrameY = v
@@ -1479,7 +1492,8 @@ function AbstractTweaks:GetOptions()
                 min = 0.5,
                 max = 2.0,
                 step = 0.05,
-                order = 18,
+                order = 170,
+                width = "full",
                 set = function(_, v)
                     self.db.profile.groupFinderScale = v
                     self:ApplyGroupFinderScale()
@@ -1489,7 +1503,8 @@ function AbstractTweaks:GetOptions()
                 name = "Use Custom Group Finder Position",
                 desc = "Enable to set a custom default position for the Group Finder window",
                 type = "toggle",
-                order = 19,
+                order = 180,
+                width = "full",
                 set = function(_, v)
                     self.db.profile.groupFinderCustomPosition = v
                     self:ApplyGroupFinderScale()
@@ -1502,7 +1517,8 @@ function AbstractTweaks:GetOptions()
                 min = -1200,
                 max = 1200,
                 step = 1,
-                order = 20,
+                order = 190,
+                width = "full",
                 disabled = function() return not self.db.profile.groupFinderCustomPosition end,
                 set = function(_, v)
                     self.db.profile.groupFinderX = v
@@ -1516,7 +1532,8 @@ function AbstractTweaks:GetOptions()
                 min = -500,
                 max = 500,
                 step = 1,
-                order = 21,
+                order = 200,
+                width = "full",
                 disabled = function() return not self.db.profile.groupFinderCustomPosition end,
                 set = function(_, v)
                     self.db.profile.groupFinderY = v
@@ -1527,7 +1544,8 @@ function AbstractTweaks:GetOptions()
                 name = "Recolor Delve Pins",
                 desc = "Makes Delve entrance pins on the world map more visible with a custom color",
                 type = "toggle",
-                order = 22,
+                order = 210,
+                width = "full",
                 set = function(_, v)
                     self.db.profile.recolorDelvePins = v
                     if v then
@@ -1540,7 +1558,8 @@ function AbstractTweaks:GetOptions()
                 name = "Delve Pin Color",
                 desc = "Color to use for Delve entrance pins on the world map",
                 type = "color",
-                order = 23,
+                order = 220,
+                width = "full",
                 hasAlpha = false,
                 disabled = function() return not self.db.profile.recolorDelvePins end,
                 get = function()
@@ -1571,7 +1590,8 @@ function AbstractTweaks:GetOptions()
                 name = "Bountiful Delve Pin Color",
                 desc = "Color to use for Bountiful Delve entrance pins on the world map (delves with a weekly bonus reward)",
                 type = "color",
-                order = 23.5,
+                order = 230,
+                width = "full",
                 hasAlpha = false,
                 disabled = function() return not self.db.profile.recolorDelvePins end,
                 get = function()
@@ -1606,7 +1626,8 @@ function AbstractTweaks:GetOptions()
                        "2. Press once to cast your fishing line\n" ..
                        "3. Hover over the fishing bobber and press again to hook the fish",
                 type = "toggle",
-                order = 24,
+                order = 240,
+                width = "full",
                 set = function(_, v)
                     self.db.profile.oneKeyFishing = v
                     if v then
@@ -1620,7 +1641,8 @@ function AbstractTweaks:GetOptions()
                 name = "Custom Whisper Sound",
                 desc = "Replace the default whisper notification sound with a custom sound",
                 type = "toggle",
-                order = 25,
+                order = 250,
+                width = "full",
                 set = function(_, v)
                     self.db.profile.customWhisperSound = v
                     if v then
@@ -1639,7 +1661,8 @@ function AbstractTweaks:GetOptions()
                 name = "Whisper Sound",
                 desc = "Select a sound to play when receiving a whisper",
                 type = "select",
-                order = 26,
+                order = 260,
+                width = "full",
                 hidden = function() return not self.db.profile.customWhisperSound end,
                 values = {
                     default = "Default Whisper (TellMessage)",
@@ -1690,8 +1713,8 @@ function AbstractTweaks:GetOptions()
                 name = "Custom Sound ID",
                 desc = "Enter a custom sound file data ID from wowhead.com/sounds\n\nYou can search for sounds on wowhead, preview them, and copy the ID from the URL.\nExample: wowhead.com/sound=567482 → enter 567482\n\nClick 'Test Sound' after entering.",
                 type = "input",
-                width = "inline",
-                order = 27,
+                width = "full",
+                order = 270,
                 hidden = function() 
                     return not self.db.profile.customWhisperSound or self.db.profile.whisperSoundPreset ~= "custom"
                 end,
@@ -1710,8 +1733,8 @@ function AbstractTweaks:GetOptions()
                 name = "Test Sound",
                 desc = "Play the currently selected whisper sound",
                 type = "execute",
-                width = "inline",
-                order = 28,
+                width = "full",
+                order = 280,
                 hidden = function() return not self.db.profile.customWhisperSound end,
                 func = function()
                     if self.db.profile.whisperSoundID then
