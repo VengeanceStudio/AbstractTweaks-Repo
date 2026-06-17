@@ -1,6 +1,6 @@
 ## Interface: 120007, 120005
 ## Title: Abstract Tweaks
-## Version: 12.0.7.2
+## Version: 12.0.7.3
 ## Notes: Standalone quality-of-life tweaks for World of Warcraft - Fast Loot, Auto Repair/Sell, Reveal Map, Delve Pin Coloring, Quest Frame Scaling, One-Key Fishing, Custom Whisper Sounds, and more!
 ## Category: Interface Enhancements
 ## Author: Vengeance
