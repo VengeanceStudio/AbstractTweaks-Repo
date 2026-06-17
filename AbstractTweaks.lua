@@ -781,12 +781,19 @@ function AbstractTweaks:HookWorldMapFrame()
         
         -- Override RefreshOverlays to show all tiles (explored and unexplored)
         function MapExplorationPinMixin:RefreshOverlays(ignoreExplored)
-            -- Always call the original function first
-            originalRefreshOverlays(self, ignoreExplored)
-            
             -- Only reveal if the option is enabled
             if not (module.db and module.db.profile.revealMap) then
+                -- If disabled, use normal behavior
+                originalRefreshOverlays(self, ignoreExplored)
                 return
+            end
+            
+            -- When reveal is enabled, don't call the original function at all
+            -- Instead, manually handle the overlay textures to show explored areas only
+            
+            -- Release all existing overlay textures (clears fog)
+            if self.overlayTexturePool then
+                self.overlayTexturePool:ReleaseAll()
             end
             
             -- Get current map info
