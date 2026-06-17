@@ -1,5 +1,3 @@
 <Bindings>
-    <Binding name="ABSTRACTTWEAKS_FISHING" runOnUp="false" command="AbstractTweaks_FishingRun">
-        One-Key Fishing
-    </Binding>
+    <Binding name="ABSTRACTTWEAKS_FISHING" runOnUp="false" command="AbstractTweaks_FishingRun" />
 </Bindings>
