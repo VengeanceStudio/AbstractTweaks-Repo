@@ -292,6 +292,8 @@ function AbstractTweaks:SetupOptions()
     local options = {
         name = "Abstract Tweaks",
         type = "group",
+        get = function(info) return self.db.profile[info[#info]] end,
+        set = function(info, value) self.db.profile[info[#info]] = value end,
         args = {
             header = {
                 type = "description",
