@@ -1,0 +1,47 @@
+## Interface: 120007, 120005
+## Title: Abstract Tweaks
+## Version: 12.0.7.0
+## Notes: Standalone quality-of-life tweaks for World of Warcraft - Fast Loot, Auto Repair/Sell, Reveal Map, Delve Pin Coloring, Quest Frame Scaling, One-Key Fishing, Custom Whisper Sounds, and more!
+## Category: Interface Enhancements
+## Author: Vengeance
+## SavedVariables: AbstractTweaksDB, AbstractTweaksTileData
+## OptionalDeps: Ace3
+
+# ------------------------------------------------------------------------------
+# KEYBINDINGS
+# ------------------------------------------------------------------------------
+Bindings.xml
+
+# ------------------------------------------------------------------------------
+# LIBRARIES
+# ------------------------------------------------------------------------------
+libs\LibStub\LibStub.lua
+libs\CallbackHandler-1.0\CallbackHandler-1.0.xml
+
+# ------------------------------------------------------------------------------
+# ACE3 FRAMEWORK
+# ------------------------------------------------------------------------------
+libs\AceAddon-3.0\AceAddon-3.0.xml
+libs\AceConsole-3.0\AceConsole-3.0.xml
+libs\AceEvent-3.0\AceEvent-3.0.xml
+libs\AceHook-3.0\AceHook-3.0.xml
+libs\AceDB-3.0\AceDB-3.0.xml
+libs\AceDBOptions-3.0\AceDBOptions-3.0.xml
+libs\AceConfig-3.0\AceConfig-3.0.xml
+libs\AceConfigDialog-3.0\AceConfigDialog-3.0.xml
+libs\AceGUI-3.0\AceGUI-3.0.xml
+
+# ------------------------------------------------------------------------------
+# CORE ENGINE
+# ------------------------------------------------------------------------------
+Core.lua
+
+# ------------------------------------------------------------------------------
+# TILE DATABASE (for Reveal Map feature)
+# ------------------------------------------------------------------------------
+TileDatabase.lua
+
+# ------------------------------------------------------------------------------
+# MAIN MODULE
+# ------------------------------------------------------------------------------
+Tweaks.lua
