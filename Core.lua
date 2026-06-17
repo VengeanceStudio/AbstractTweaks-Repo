@@ -6,10 +6,6 @@ local AbstractTweaks = LibStub("AceAddon-3.0"):NewAddon("AbstractTweaks", "AceCo
 
 AbstractTweaks.version = "12.0.7.0"
 
--- Keybinding localization
-BINDING_HEADER_ABSTRACTTWEAKS = "Abstract Tweaks"
-BINDING_NAME_ABSTRACTTWEAKS_FISHING = "One-Key Fishing"
-
 -- Define reload confirmation dialog
 StaticPopupDialogs["ABSTRACTTWEAKS_RELOAD_CONFIRM"] = {
     text = "This action requires a UI reload. Reload now?",

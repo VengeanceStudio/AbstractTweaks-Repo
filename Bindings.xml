@@ -1,3 +1,5 @@
 <Bindings>
-    <Binding name="ABSTRACTTWEAKS_FISHING" header="ABSTRACTTWEAKS"/>
+	<Binding name="ABSTRACTTWEAKS_FISHING" category="Abstract Tweaks">
+		AbstractTweaks_FishingRun()
+	</Binding>
 </Bindings>
