@@ -4,7 +4,7 @@
 
 local AbstractTweaks = LibStub("AceAddon-3.0"):NewAddon("AbstractTweaks", "AceConsole-3.0", "AceEvent-3.0")
 
-AbstractTweaks.version = "1.0.0"
+AbstractTweaks.version = "12.0.7.0"
 
 -- Keybinding localization
 BINDING_NAME_ABSTRACTTWEAKS_FISHING = "One-Key Fishing"
