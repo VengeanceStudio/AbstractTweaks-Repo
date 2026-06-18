@@ -793,9 +793,9 @@ function AbstractTweaks:HookWorldMapFrame()
             local mapID = pin:GetMap() and pin:GetMap():GetMapID()
             if not mapID then return end
             
-            -- Get the map canvas positioning for texture placement
-            local mapRectLeft, mapRectRight, mapRectTop, mapRectBottom = pin:GetMap():GetMapRectOnCanvas()
-            if not mapRectLeft then return end
+            -- Get the canvas for texture placement
+            local canvas = pin:GetMap():GetCanvas()
+            if not canvas then return end
             
             -- Get tile size info
             pin.layerIndex = pin:GetMap():GetCanvasContainer():GetCurrentLayerIndex()
@@ -877,9 +877,9 @@ function AbstractTweaks:HookWorldMapFrame()
                                         if fileDataID and fileDataID > 0 then
                                             texture:SetSize(texturePixelWidth, texturePixelHeight)
                                             texture:SetTexCoord(0, texturePixelWidth/textureFileWidth, 0, texturePixelHeight/textureFileHeight)
-                                            texture:SetPoint("TOPLEFT", pin:GetMap():GetCanvas(), "TOPLEFT",
-                                                mapRectLeft + offsetX + (TILE_SIZE_WIDTH * (k - 1)),
-                                                -(mapRectTop + offsetY + (TILE_SIZE_HEIGHT * (j - 1))))
+                                            texture:SetPoint("TOPLEFT", canvas, "TOPLEFT",
+                                                offsetX + (TILE_SIZE_WIDTH * (k - 1)),
+                                                -(offsetY + (TILE_SIZE_HEIGHT * (j - 1))))
                                             texture:SetTexture(fileDataID, nil, nil, "TRILINEAR")
                                             texture:SetDrawLayer("ARTWORK", -1)
                                             texture:SetAlpha(1)
