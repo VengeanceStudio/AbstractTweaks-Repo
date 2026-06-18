@@ -775,112 +775,120 @@ function AbstractTweaks:HookWorldMapFrame()
     
     local module = self
     
-    -- Store the original RefreshOverlays function from MapExplorationPinMixin
-    if MapExplorationPinMixin and MapExplorationPinMixin.RefreshOverlays then
-        local originalRefreshOverlays = MapExplorationPinMixin.RefreshOverlays
-        
-        -- Override RefreshOverlays to show all tiles (explored and unexplored)
-        function MapExplorationPinMixin:RefreshOverlays(ignoreExplored)
+    -- Hook RefreshOverlays to run AFTER the original function
+    for pin in WorldMapFrame:EnumeratePinsByTemplate("MapExplorationPinTemplate") do
+        hooksecurefunc(pin, "RefreshOverlays", function(pin, fullUpdate)
             -- Only reveal if the option is enabled
             if not (module.db and module.db.profile.revealMap) then
-                -- If disabled, use normal behavior
-                originalRefreshOverlays(self, ignoreExplored)
                 return
             end
             
-            -- When reveal is enabled, don't call the original function at all
-            -- Instead, manually handle the overlay textures to show explored areas only
-            
-            -- Release all existing overlay textures (clears fog)
-            if self.overlayTexturePool then
-                self.overlayTexturePool:ReleaseAll()
+            -- Remove fog tint from existing overlays (makes fog transparent)
+            for overlay in pin.overlayTexturePool:EnumerateActive() do
+                overlay:SetVertexColor(1, 1, 1)
+                overlay:SetAlpha(1)
             end
             
             -- Get current map info
-            local mapID = self:GetMap() and self:GetMap():GetMapID()
+            local mapID = pin:GetMap() and pin:GetMap():GetMapID()
             if not mapID then return end
             
             -- Get the map canvas positioning for texture placement
-            local mapRectLeft, mapRectRight, mapRectTop, mapRectBottom = self:GetMap():GetMapRectOnCanvas()
+            local mapRectLeft, mapRectRight, mapRectTop, mapRectBottom = pin:GetMap():GetMapRectOnCanvas()
             if not mapRectLeft then return end
+            
+            -- Get tile size info
+            pin.layerIndex = pin:GetMap():GetCanvasContainer():GetCurrentLayerIndex()
+            local layers = C_Map.GetMapArtLayers(mapID)
+            local layerInfo = layers and layers[pin.layerIndex]
+            if not layerInfo then return end
+            local TILE_SIZE_WIDTH = layerInfo.tileWidth
+            local TILE_SIZE_HEIGHT = layerInfo.tileHeight
+            
+            -- Build a table of already explored tiles
+            local exploredTiles = {}
+            local exploredMapTextures = C_MapExplorationInfo.GetExploredMapTextures(mapID)
+            if exploredMapTextures then
+                for _, textureInfo in ipairs(exploredMapTextures) do
+                    local key = textureInfo.textureWidth .. ":" .. textureInfo.textureHeight .. ":" .. textureInfo.offsetX .. ":" .. textureInfo.offsetY
+                    exploredTiles[key] = true
+                end
+            end
             
             -- Check if we have tile database for this map
             local tileData = AbstractTweaks:GetMapTileData(mapID)
             
             if tileData then
-                -- Use the pre-built tile database (reveals unexplored areas)
+                -- Add unexplored tiles from our database
                 for key, fileIDsString in pairs(tileData) do
-                    -- Parse the key: "width:height:offsetX:offsetY"
-                    local width, height, offsetX, offsetY = key:match("(%d+):(%d+):(%d+):(%d+)")
-                    if width and height and offsetX and offsetY then
-                        width = tonumber(width)
-                        height = tonumber(height)
-                        offsetX = tonumber(offsetX)
-                        offsetY = tonumber(offsetY)
-                        
-                        -- Parse file data IDs (comma-separated)
-                        for fileIDStr in fileIDsString:gmatch("%d+") do
-                            local fileDataID = tonumber(fileIDStr)
-                            if fileDataID and fileDataID > 0 then
-                                -- Acquire a texture from the pool
-                                local texture = self.overlayTexturePool:Acquire()
-                                
-                                if texture then
-                                    -- Set the texture using file data ID
-                                    texture:SetTexture(fileDataID, nil, nil, "TRILINEAR")
-                                    
-                                    -- Set size
-                                    texture:SetSize(width, height)
-                                    
-                                    -- Position the texture
-                                    texture:ClearAllPoints()
-                                    texture:SetPoint("TOPLEFT", self:GetMap():GetCanvas(), "TOPLEFT",
-                                        mapRectLeft + offsetX,
-                                        -(mapRectTop + offsetY))
-                                    
-                                    -- Ensure it's fully visible
-                                    texture:SetAlpha(1.0)
-                                    texture:SetDrawLayer("ARTWORK", 1)
-                                    texture:Show()
-                                end
+                    if not exploredTiles[key] then
+                        -- Parse the key: "width:height:offsetX:offsetY"
+                        local width, height, offsetX, offsetY = key:match("(%d+):(%d+):(%d+):(%d+)")
+                        if width and height and offsetX and offsetY then
+                            width = tonumber(width)
+                            height = tonumber(height)
+                            offsetX = tonumber(offsetX)
+                            offsetY = tonumber(offsetY)
+                            
+                            -- Parse file data IDs (comma-separated)
+                            local fileDataIDs = {}
+                            for fileIDStr in fileIDsString:gmatch("%d+") do
+                                table.insert(fileDataIDs, tonumber(fileIDStr))
                             end
-                        end
-                    end
-                end
-            else
-                -- Fallback: Use Blizzard's explored textures only (no database for this map)
-                local exploredMapTextures = C_MapExplorationInfo.GetExploredMapTextures(mapID)
-                if exploredMapTextures then
-                    for _, textureInfo in ipairs(exploredMapTextures) do
-                        -- Only process tiles that have actual file data (explored tiles)
-                        if textureInfo.fileDataIDs and #textureInfo.fileDataIDs > 0 then
-                            for _, fileDataID in ipairs(textureInfo.fileDataIDs) do
-                                if fileDataID and fileDataID > 0 then
-                                    -- Acquire a texture from the pool
-                                    local texture = self.overlayTexturePool:Acquire()
+                            
+                            local numTexturesWide = math.ceil(width / TILE_SIZE_WIDTH)
+                            local numTexturesTall = math.ceil(height / TILE_SIZE_HEIGHT)
+                            
+                            for j = 1, numTexturesTall do
+                                local texturePixelHeight, textureFileHeight
+                                if j < numTexturesTall then
+                                    texturePixelHeight = TILE_SIZE_HEIGHT
+                                    textureFileHeight = TILE_SIZE_HEIGHT
+                                else
+                                    texturePixelHeight = width % TILE_SIZE_HEIGHT
+                                    if texturePixelHeight == 0 then
+                                        texturePixelHeight = TILE_SIZE_HEIGHT
+                                    end
+                                    textureFileHeight = 16
+                                    while textureFileHeight < texturePixelHeight do
+                                        textureFileHeight = textureFileHeight * 2
+                                    end
+                                end
+                                
+                                for k = 1, numTexturesWide do
+                                    local texturePixelWidth, textureFileWidth
+                                    if k < numTexturesWide then
+                                        texturePixelWidth = TILE_SIZE_WIDTH
+                                        textureFileWidth = TILE_SIZE_WIDTH
+                                    else
+                                        texturePixelWidth = width % TILE_SIZE_WIDTH
+                                        if texturePixelWidth == 0 then
+                                            texturePixelWidth = TILE_SIZE_WIDTH
+                                        end
+                                        textureFileWidth = 16
+                                        while textureFileWidth < texturePixelWidth do
+                                            textureFileWidth = textureFileWidth * 2
+                                        end
+                                    end
                                     
+                                    local texture = pin.overlayTexturePool:Acquire()
                                     if texture then
-                                        -- Set the texture
-                                        texture:SetTexture(fileDataID, nil, nil, "TRILINEAR")
-                                        
-                                        -- Set size
-                                        local width = textureInfo.textureWidth or 256
-                                        local height = textureInfo.textureHeight or 256
-                                        texture:SetSize(width, height)
-                                        
-                                        -- Position the texture
-                                        local offsetX = textureInfo.offsetX or 0
-                                        local offsetY = textureInfo.offsetY or 0
-                                        
-                                        texture:ClearAllPoints()
-                                        texture:SetPoint("TOPLEFT", self:GetMap():GetCanvas(), "TOPLEFT",
-                                            mapRectLeft + offsetX,
-                                            -(mapRectTop + offsetY))
-                                        
-                                        -- Ensure it's fully visible
-                                        texture:SetAlpha(1.0)
-                                        texture:SetDrawLayer("ARTWORK", 1)
-                                        texture:Show()
+                                        local fileDataID = fileDataIDs[((j - 1) * numTexturesWide) + k]
+                                        if fileDataID and fileDataID > 0 then
+                                            texture:SetSize(texturePixelWidth, texturePixelHeight)
+                                            texture:SetTexCoord(0, texturePixelWidth/textureFileWidth, 0, texturePixelHeight/textureFileHeight)
+                                            texture:SetPoint("TOPLEFT", pin:GetMap():GetCanvas(), "TOPLEFT",
+                                                mapRectLeft + offsetX + (TILE_SIZE_WIDTH * (k - 1)),
+                                                -(mapRectTop + offsetY + (TILE_SIZE_HEIGHT * (j - 1))))
+                                            texture:SetTexture(fileDataID, nil, nil, "TRILINEAR")
+                                            texture:SetDrawLayer("ARTWORK", -1)
+                                            texture:SetAlpha(1)
+                                            texture:Show()
+                                            
+                                            if fullUpdate and pin.textureLoadGroup then
+                                                pin.textureLoadGroup:AddTexture(texture)
+                                            end
+                                        end
                                     end
                                 end
                             end
@@ -888,7 +896,7 @@ function AbstractTweaks:HookWorldMapFrame()
                     end
                 end
             end
-        end
+        end)
     end
     
     -- Hook WorldMapFrame to trigger reveal when shown
