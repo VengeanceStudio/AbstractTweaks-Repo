@@ -1,11 +1,11 @@
 ## Interface: 120007, 120005
 ## Title: Abstract Tweaks
-## Version: 12.0.7.23
+## Version: 12.0.7.24
 ## Notes: Standalone quality-of-life tweaks for World of Warcraft - Fast Loot, Auto Repair/Sell, Reveal Map, Delve Pin Coloring, Quest Frame Scaling, One-Key Fishing, Custom Whisper Sounds, and more!
 ## Category: Interface Enhancements
 ## Author: Vengeance
 ## X-Website: https://github.com/VengeanceStudio/AbstractTweaks
-## X-Curse-Project-ID: 1579136
+## X-Curse-Project-ID: 1585719
 ## IconTexture: Interface\AddOns\AbstractUI\icon.png
 ## SavedVariables: AbstractTweaksDB, AbstractTweaksTileData
 ## OptionalDeps: Ace3
