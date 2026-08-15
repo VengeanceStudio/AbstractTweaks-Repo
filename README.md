@@ -1,6 +1,10 @@
 # Abstract Tweaks
 
-A standalone World of Warcraft addon providing quality-of-life improvements and tweaks.
+![WoW Version](https://img.shields.io/badge/WoW-12.1.0-blue.svg) ![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)
+
+**AbstractTweaks** is a standalone World of Warcraft addon providing quality-of-life improvements and tweaks. 
+
+**Version:** 12.1.0.2 | **Author:** Vengeance
 
 ## Features
 
