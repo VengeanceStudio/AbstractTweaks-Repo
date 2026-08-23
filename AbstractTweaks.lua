@@ -1769,8 +1769,7 @@ end
 
 -- Global function called by the keybinding
 function AbstractTweaks_FishingRun()
-    local Tweaks = AbstractTweaks:GetModule("Tweaks", true)
-    if not Tweaks or not AbstractTweaks.db or not AbstractTweaks.db.profile.oneKeyFishing then return end
+    if not AbstractTweaks.db or not AbstractTweaks.db.profile.oneKeyFishing then return end
     
     -- Don't run in combat or while flying
     if InCombatLockdown() or IsFlying() or IsMounted() then return end
