@@ -71,6 +71,10 @@ local defaults = {
         groupFinderX = 0,
         groupFinderY = 0,
         groupFinderCustomPosition = false,
+        moveDungeonActivityText = false,
+        dungeonActivityTextPositioned = false,
+        dungeonActivityTextX = 0,
+        dungeonActivityTextY = 0,
         recolorDelvePins = true,
         delvePinColor = { r = 0.2, g = 1.0, b = 0.8, a = 1.0 },
         bountifulDelvePinColor = { r = 1.0, g = 0.84, b = 0.0, a = 1.0 },
@@ -200,6 +204,10 @@ function AbstractTweaks:OnEnable()
     if self.db.profile.customWhisperSound then
         self:SetupCustomWhisperSound()
     end
+
+    C_Timer.After(3, function()
+        self:SetupDungeonActivityTextMover()
+    end)
     
     -- Register quest and gossip frame events
     self:RegisterEvent("QUEST_DETAIL")
@@ -582,6 +590,41 @@ function AbstractTweaks:ApplyQuestFrameScale()
             GossipFrame:SetPoint("CENTER", UIParent, "CENTER", x, y)
         end
     end
+end
+
+function AbstractTweaks:SetupDungeonActivityTextMover()
+    local frame = UIWidgetTopCenterContainerFrame or UIWidgetTopCenterContainer
+    if not frame or not self.db or not self.db.profile then return end
+
+    if self.db.profile.moveDungeonActivityText and self.db.profile.dungeonActivityTextPositioned then
+        frame:ClearAllPoints()
+        frame:SetPoint("TOP", UIParent, "TOP", self.db.profile.dungeonActivityTextX, self.db.profile.dungeonActivityTextY)
+    end
+
+    frame:EnableMouse(self.db.profile.moveDungeonActivityText)
+    if self.dungeonActivityTextMoverHooked then return end
+
+    local module = self
+    frame:SetMovable(true)
+    frame:RegisterForDrag("LeftButton")
+    frame:HookScript("OnDragStart", function(widget)
+        if module.db.profile.moveDungeonActivityText and IsShiftKeyDown() and not InCombatLockdown() then
+            widget.abstractTweaksMoving = true
+            widget:StartMoving()
+        end
+    end)
+    frame:HookScript("OnDragStop", function(widget)
+        if not widget.abstractTweaksMoving then return end
+        widget.abstractTweaksMoving = nil
+        widget:StopMovingOrSizing()
+
+        local scale = UIParent:GetEffectiveScale()
+        module.db.profile.dungeonActivityTextX = (widget:GetCenter() - UIParent:GetCenter()) / scale
+        module.db.profile.dungeonActivityTextY = (widget:GetTop() - UIParent:GetTop()) / scale
+        module.db.profile.dungeonActivityTextPositioned = true
+    end)
+
+    self.dungeonActivityTextMoverHooked = true
 end
 
 function AbstractTweaks:QUEST_DETAIL()
@@ -1553,6 +1596,17 @@ function AbstractTweaks:GetOptions()
                 set = function(_, v)
                     self.db.profile.groupFinderY = v
                     self:ApplyGroupFinderScale()
+                end,
+            },
+            moveDungeonActivityText = {
+                name = "Move Dungeon Activity Text",
+                desc = "Hold Shift and drag dungeon activity text, such as Offerings Acquired, to reposition it",
+                type = "toggle",
+                order = 205,
+                width = "full",
+                set = function(_, v)
+                    self.db.profile.moveDungeonActivityText = v
+                    self:SetupDungeonActivityTextMover()
                 end,
             },
             recolorDelvePins = {
