@@ -1313,16 +1313,16 @@ function AbstractTweaks:AutoRepair()
         RepairAllItems(true)
         local guildRepairCost = GetGuildBankWithdrawMoney()
         if guildRepairCost >= repairCost then
-            print("|cff00ff00[Abstract Tweaks]|r Repaired all items using guild bank funds for " .. GetCoinTextureString(repairCost))
+            print("|cff00ff00[Abstract Tweaks]|r Repaired all items using guild bank funds for " .. C_CurrencyInfo.GetCoinTextureString(repairCost))
         else
             print("|cff00ff00[Abstract Tweaks]|r Guild bank repair failed, insufficient funds.")
         end
     else
         if GetMoney() >= repairCost then
             RepairAllItems(false)
-            print("|cff00ff00[Abstract Tweaks]|r Repaired all items for " .. GetCoinTextureString(repairCost))
+            print("|cff00ff00[Abstract Tweaks]|r Repaired all items for " .. C_CurrencyInfo.GetCoinTextureString(repairCost))
         else
-            print("|cffff6b6b[Abstract Tweaks]|r Not enough gold to repair all items. Need " .. GetCoinTextureString(repairCost))
+            print("|cffff6b6b[Abstract Tweaks]|r Not enough gold to repair all items. Need " .. C_CurrencyInfo.GetCoinTextureString(repairCost))
         end
     end
 end
@@ -1357,7 +1357,7 @@ function AbstractTweaks:AutoSellJunk()
     end
     
     if itemsSold > 0 then
-        print("|cff00ff00[Abstract Tweaks]|r Sold " .. itemsSold .. " junk item(s) for " .. GetCoinTextureString(totalValue))
+        print("|cff00ff00[Abstract Tweaks]|r Sold " .. itemsSold .. " junk item(s) for " .. C_CurrencyInfo.GetCoinTextureString(totalValue))
     end
 end
 
